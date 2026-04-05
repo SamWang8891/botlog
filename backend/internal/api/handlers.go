@@ -55,39 +55,70 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "retry: 3000\n\n")
 	flusher.Flush()
 
-	var lastTimestamp time.Time
-	firstPoll := true
+	// Send initial backfill (latest 100), then poll for new records only
+	var cursor time.Time
 	pingTick := 0
 
+	// First: send backfill immediately
+	{
+		rows, err := s.conn.Query(r.Context(), `SELECT timestamp, method, path, user_agent, country, city,
+			content_type, body_preview, body_size
+			FROM hits ORDER BY timestamp DESC LIMIT 100`)
+		if err != nil {
+			log.Printf("SSE backfill error: %v", err)
+		} else {
+			var hits []map[string]interface{}
+			for rows.Next() {
+				var ts time.Time
+				var method, path, ua, country, city, ct, body string
+				var bodySize int64
+				if err := rows.Scan(&ts, &method, &path, &ua, &country, &city, &ct, &body, &bodySize); err != nil {
+					continue
+				}
+				if ts.After(cursor) {
+					cursor = ts
+				}
+				hits = append(hits, map[string]interface{}{
+					"timestamp":    ts.Format(time.RFC3339Nano),
+					"method":       method,
+					"path":         path,
+					"user_agent":   ua,
+					"country":      country,
+					"city":         city,
+					"content_type": ct,
+					"body_preview": body,
+					"body_size":    bodySize,
+				})
+			}
+			rows.Close()
+			if len(hits) > 0 {
+				data, _ := json.Marshal(hits)
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+			}
+		}
+	}
+
+	// If no records exist yet, start cursor from now
+	if cursor.IsZero() {
+		cursor = time.Now().UTC()
+	}
+
+	// Poll loop: only fetch records strictly newer than cursor
 	for {
+		time.Sleep(time.Second)
+
 		select {
 		case <-r.Context().Done():
 			return
 		default:
 		}
 
-		var query string
-		if firstPoll {
-			query = `SELECT timestamp, method, path, user_agent, country, city,
-			          content_type, body_preview, body_size
-			          FROM hits ORDER BY timestamp DESC LIMIT 100`
-		} else {
-			query = `SELECT timestamp, method, path, user_agent, country, city,
-			          content_type, body_preview, body_size
-			          FROM hits WHERE timestamp > ?
-			          ORDER BY timestamp DESC LIMIT 50`
-		}
-
-		var rows driver.Rows
-		var err error
-		if firstPoll {
-			rows, err = s.conn.Query(r.Context(), query)
-		} else {
-			rows, err = s.conn.Query(r.Context(), query, lastTimestamp)
-		}
+		rows, err := s.conn.Query(r.Context(), `SELECT timestamp, method, path, user_agent, country, city,
+			content_type, body_preview, body_size
+			FROM hits WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 50`, cursor)
 		if err != nil {
-			log.Printf("SSE query error: %v", err)
-			time.Sleep(time.Second)
+			log.Printf("SSE poll error: %v", err)
 			continue
 		}
 
@@ -97,11 +128,10 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			var method, path, ua, country, city, ct, body string
 			var bodySize int64
 			if err := rows.Scan(&ts, &method, &path, &ua, &country, &city, &ct, &body, &bodySize); err != nil {
-				log.Printf("SSE scan error: %v", err)
 				continue
 			}
-			if ts.After(lastTimestamp) {
-				lastTimestamp = ts
+			if ts.After(cursor) {
+				cursor = ts
 			}
 			hits = append(hits, map[string]interface{}{
 				"timestamp":    ts.Format(time.RFC3339Nano),
@@ -121,8 +151,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			data, _ := json.Marshal(hits)
 			fmt.Fprintf(w, "data: %s\n\n", data)
 			flusher.Flush()
+			pingTick = 0
 		} else {
-			// Send keepalive ping every 15s to prevent proxy timeout
 			pingTick++
 			if pingTick >= 15 {
 				fmt.Fprintf(w, ": ping\n\n")
@@ -130,9 +160,6 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 				pingTick = 0
 			}
 		}
-		firstPoll = false
-
-		time.Sleep(time.Second)
 	}
 }
 

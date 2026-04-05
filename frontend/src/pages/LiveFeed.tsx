@@ -12,11 +12,9 @@ function truncateUA(ua: string, max = 50) {
 }
 
 function HitRow({ hit }: { hit: DisplayHit }) {
-  if (!hit._visible) return null;
-
   const rowClass = hit._isNew
-    ? 'animate-slide-in border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors bg-neon-green/5'
-    : 'animate-reveal border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors';
+    ? 'animate-slide-in border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors'
+    : 'border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors';
 
   return (
     <tr className={rowClass}>
@@ -52,7 +50,6 @@ function HitRow({ hit }: { hit: DisplayHit }) {
 
 export default function LiveFeed() {
   const { hits, connected } = useSSE('/api/hits/live');
-  const visibleCount = hits.filter(h => h._visible).length;
 
   return (
     <div>
@@ -64,7 +61,7 @@ export default function LiveFeed() {
             {connected ? 'LIVE — streaming bot traffic' : 'RECONNECTING...'}
           </span>
         </div>
-        <span className="text-xs text-dark-500">{visibleCount} events buffered</span>
+        <span className="text-xs text-dark-500">{hits.length} events buffered</span>
       </div>
 
       {/* Table */}
