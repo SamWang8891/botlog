@@ -39,7 +39,7 @@ services:
       dockerfile: Dockerfile
     container_name: botlog-frontend
     ports:
-      - "8000:80"
+      - "8120:80"
     depends_on:
       - backend
     restart: unless-stopped
