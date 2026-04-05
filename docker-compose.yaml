@@ -7,6 +7,9 @@ services:
     ports:
       - "8123:8123"   # HTTP
       - "9000:9000"   # Native
+    environment:
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_PASSWORD=
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./backend/migrations:/docker-entrypoint-initdb.d
