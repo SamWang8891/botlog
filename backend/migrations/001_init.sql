@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS botlog.hits (
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (timestamp, country, method)
-TTL toDateTime(timestamp) + INTERVAL 100 YEAR
 SETTINGS index_granularity = 8192;
 
 -- Materialized view: hits per hour by country
