@@ -45,3 +45,4 @@ services:
 
 volumes:
   clickhouse_data:
+    name: botlog_clickhouse_data

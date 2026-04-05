@@ -55,7 +55,31 @@ if [ "$SELF_HASH" != "$NEW_HASH" ]; then
     exit 0
 fi
 
-# ── 2. Update GeoLite2-City.mmdb ───────────────────────────────
+# ── 2. Backup ClickHouse data ──────────────────────────────────
+BACKUP_DIR="$(pwd)/backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_TS=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="${BACKUP_DIR}/botlog_${BACKUP_TS}.sql.gz"
+
+if docker inspect -f '{{.State.Running}}' botlog-clickhouse 2>/dev/null | grep -q true; then
+    info "Backing up ClickHouse data..."
+    docker exec botlog-clickhouse clickhouse-client --query \
+        "SELECT * FROM botlog.hits FORMAT Native" 2>/dev/null | gzip > "$BACKUP_FILE"
+
+    if [ -s "$BACKUP_FILE" ]; then
+        ok "Backup saved: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+    else
+        rm -f "$BACKUP_FILE"
+        warn "Backup is empty (no data yet?) — continuing anyway"
+    fi
+
+    # Keep only last 5 backups
+    ls -1t "$BACKUP_DIR"/botlog_*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+else
+    warn "ClickHouse not running — skipping backup"
+fi
+
+# ── 3. Update GeoLite2-City.mmdb ───────────────────────────────
 DATA_DIR="$(pwd)/data"
 MMDB_PATH="${DATA_DIR}/GeoLite2-City.mmdb"
 GEOLITE2_URL="https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb"
@@ -81,13 +105,21 @@ fi
 mv -f "$MMDB_TMP" "$MMDB_PATH"
 ok "GeoLite2-City.mmdb updated ($(du -h "$MMDB_PATH" | cut -f1))"
 
-# ── 3. Rebuild and restart ───────────────��──────────────────────
-info "Rebuilding and restarting services..."
-$COMPOSE up -d --build 2>&1 | while IFS= read -r line; do
+# ── 4. Rebuild and restart (backend + frontend only, never touch ClickHouse) ──
+info "Rebuilding backend and frontend (ClickHouse untouched)..."
+$COMPOSE up -d --build --no-deps backend frontend 2>&1 | while IFS= read -r line; do
     echo -e "  ${line}"
 done
 
+# Ensure ClickHouse is running (start if stopped, but never recreate)
+if ! docker inspect -f '{{.State.Running}}' botlog-clickhouse 2>/dev/null | grep -q true; then
+    info "Starting ClickHouse..."
+    $COMPOSE up -d clickhouse 2>&1 | while IFS= read -r line; do
+        echo -e "  ${line}"
+    done
+fi
+
 echo ""
 ok "Update complete. Dashboard: http://localhost"
-echo -e "  Database volume preserved — no data lost."
+echo -e "  ClickHouse was NOT rebuilt — your data is safe."
 echo -e "  To view logs: ${YELLOW}$COMPOSE logs -f${NC}"

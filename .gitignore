@@ -10,3 +10,4 @@ data/*.mmdb
 *.dylib
 .env
 proxies.conf
+backups/
