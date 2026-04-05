@@ -31,11 +31,23 @@ fi
 # ── 1. Git pull ─────────────────────────────────────────────────
 SELF_HASH=$(md5sum "$0" 2>/dev/null || md5 -q "$0" 2>/dev/null)
 
+# Back up user config that git pull might overwrite
+PROXIES_BACKUP=""
+if [ -f proxies.conf ] && git diff --name-only HEAD..origin/main 2>/dev/null | grep -q 'proxies.conf'; then
+    PROXIES_BACKUP=$(cat proxies.conf)
+fi
+
 info "Pulling latest code..."
 if ! git pull --ff-only; then
     fail "git pull failed. Resolve conflicts manually and re-run."
 fi
 ok "Code updated"
+
+# Restore user's proxy config if it was overwritten
+if [ -n "$PROXIES_BACKUP" ]; then
+    echo "$PROXIES_BACKUP" > proxies.conf
+    ok "Restored your proxies.conf"
+fi
 
 NEW_HASH=$(md5sum "$0" 2>/dev/null || md5 -q "$0" 2>/dev/null)
 if [ "$SELF_HASH" != "$NEW_HASH" ]; then
@@ -77,4 +89,5 @@ done
 
 echo ""
 ok "Update complete. Dashboard: http://localhost"
+echo -e "  Database volume preserved — no data lost."
 echo -e "  To view logs: ${YELLOW}$COMPOSE logs -f${NC}"

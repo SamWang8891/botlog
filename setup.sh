@@ -76,15 +76,23 @@ else
     ok "GeoLite2-City.mmdb downloaded ($(du -h "$MMDB_PATH" | cut -f1))"
 fi
 
-# ── 5. Build and deploy ─────────────────────────────────────────
+# ── 5. Ensure proxies.conf exists ──────────────────────────────
 cd "$(dirname "$0")"
+if [ ! -f proxies.conf ]; then
+    cp proxies.conf.example proxies.conf
+    ok "Created proxies.conf (edit to add your reverse proxy IPs)"
+else
+    ok "proxies.conf exists, keeping your config"
+fi
+
+# ── 6. Build and deploy ─────────────────────────────────────────
 
 info "Building and starting services..."
 $COMPOSE up -d --build 2>&1 | while IFS= read -r line; do
     echo -e "  ${line}"
 done
 
-# ── 6. Wait for services to be healthy ──────────────────────────
+# ── 7. Wait for services to be healthy ──────────────────────────
 info "Waiting for services to start..."
 sleep 5
 
@@ -120,5 +128,8 @@ echo -e "  Any bot hitting any path will be logged."
 echo ""
 echo -e "  To view logs:    ${YELLOW}$COMPOSE logs -f${NC}"
 echo -e "  To stop:         ${YELLOW}$COMPOSE down${NC}"
+echo ""
+echo -e "  ${CYAN}Reverse proxy?${NC} Add your proxy IP to ${YELLOW}proxies.conf${NC}"
+echo -e "  then restart:    ${YELLOW}$COMPOSE up -d --build backend${NC}"
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"

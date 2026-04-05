@@ -49,9 +49,15 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Tell browser to retry after 3s if connection drops
+	fmt.Fprintf(w, "retry: 3000\n\n")
 	flusher.Flush()
 
 	var lastTimestamp time.Time
+	firstPoll := true
+	pingTick := 0
 
 	for {
 		select {
@@ -60,16 +66,25 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 
-		query := `SELECT timestamp, method, path, user_agent, country, city,
-		          content_type, body_preview, body_size
-		          FROM hits WHERE timestamp > ?
-		          ORDER BY timestamp DESC LIMIT 50`
-
-		if lastTimestamp.IsZero() {
-			lastTimestamp = time.Now().UTC().Add(-10 * time.Second)
+		var query string
+		if firstPoll {
+			query = `SELECT timestamp, method, path, user_agent, country, city,
+			          content_type, body_preview, body_size
+			          FROM hits ORDER BY timestamp DESC LIMIT 100`
+		} else {
+			query = `SELECT timestamp, method, path, user_agent, country, city,
+			          content_type, body_preview, body_size
+			          FROM hits WHERE timestamp > ?
+			          ORDER BY timestamp DESC LIMIT 50`
 		}
 
-		rows, err := s.conn.Query(r.Context(), query, lastTimestamp)
+		var rows driver.Rows
+		var err error
+		if firstPoll {
+			rows, err = s.conn.Query(r.Context(), query)
+		} else {
+			rows, err = s.conn.Query(r.Context(), query, lastTimestamp)
+		}
 		if err != nil {
 			log.Printf("SSE query error: %v", err)
 			time.Sleep(time.Second)
@@ -106,7 +121,16 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			data, _ := json.Marshal(hits)
 			fmt.Fprintf(w, "data: %s\n\n", data)
 			flusher.Flush()
+		} else {
+			// Send keepalive ping every 15s to prevent proxy timeout
+			pingTick++
+			if pingTick >= 15 {
+				fmt.Fprintf(w, ": ping\n\n")
+				flusher.Flush()
+				pingTick = 0
+			}
 		}
+		firstPoll = false
 
 		time.Sleep(time.Second)
 	}

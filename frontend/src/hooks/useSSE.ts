@@ -18,6 +18,7 @@ export function useSSE(url: string) {
   const [hits, setHits] = useState<HitEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const retriesRef = useRef(0);
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -27,7 +28,10 @@ export function useSSE(url: string) {
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
-    es.onopen = () => setConnected(true);
+    es.onopen = () => {
+      setConnected(true);
+      retriesRef.current = 0;
+    };
 
     es.onmessage = (event) => {
       try {
@@ -44,7 +48,10 @@ export function useSSE(url: string) {
     es.onerror = () => {
       setConnected(false);
       es.close();
-      setTimeout(connect, 3000);
+      // Backoff: 1s, 2s, 4s, 8s, max 15s
+      const delay = Math.min(1000 * Math.pow(2, retriesRef.current), 15000);
+      retriesRef.current++;
+      setTimeout(connect, delay);
     };
   }, [url]);
 

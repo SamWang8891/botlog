@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
@@ -29,6 +27,7 @@ services:
       - GEOIP_PATH=/data/GeoLite2-City.mmdb
     volumes:
       - ./data:/data
+      - ./proxies.conf:/data/proxies.conf:ro
     depends_on:
       - clickhouse
     restart: unless-stopped

@@ -44,7 +44,7 @@ func main() {
 	log.Println("ClickHouse connected")
 
 	// Trap server — catches all bot requests
-	trapHandler := ingestion.NewHandler(chClient, geo)
+	trapHandler := ingestion.NewHandler(chClient, geo, cfg.TrustedProxies)
 	trapServer := &http.Server{
 		Addr:    ":" + cfg.TrapPort,
 		Handler: trapHandler,

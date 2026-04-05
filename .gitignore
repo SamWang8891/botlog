@@ -9,3 +9,4 @@ data/*.mmdb
 *.so
 *.dylib
 .env
+proxies.conf
