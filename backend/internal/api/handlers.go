@@ -49,6 +49,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	flusher.Flush()
 
 	var lastTimestamp time.Time
 
@@ -61,7 +62,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 		query := `SELECT timestamp, method, path, user_agent, country, city,
 		          content_type, body_preview, body_size
-		          FROM hits WHERE timestamp > $1
+		          FROM hits WHERE timestamp > ?
 		          ORDER BY timestamp DESC LIMIT 50`
 
 		if lastTimestamp.IsZero() {
@@ -140,30 +141,25 @@ func parseFilters(r *http.Request) filterParams {
 	return f
 }
 
-func buildWhereClause(f filterParams, startParam int) (string, []interface{}) {
-	clauses := []string{"timestamp >= $1", "timestamp <= $2"}
+func buildWhereClause(f filterParams) (string, []interface{}) {
+	clauses := []string{"timestamp >= ?", "timestamp <= ?"}
 	args := []interface{}{f.from, f.to}
-	idx := startParam + 2
 
 	if f.country != "" {
-		clauses = append(clauses, fmt.Sprintf("country = $%d", idx))
+		clauses = append(clauses, "country = ?")
 		args = append(args, f.country)
-		idx++
 	}
 	if f.method != "" {
-		clauses = append(clauses, fmt.Sprintf("method = $%d", idx))
+		clauses = append(clauses, "method = ?")
 		args = append(args, f.method)
-		idx++
 	}
 	if f.path != "" {
-		clauses = append(clauses, fmt.Sprintf("path LIKE $%d", idx))
+		clauses = append(clauses, "path LIKE ?")
 		args = append(args, "%"+f.path+"%")
-		idx++
 	}
 	if f.agent != "" {
-		clauses = append(clauses, fmt.Sprintf("user_agent LIKE $%d", idx))
+		clauses = append(clauses, "user_agent LIKE ?")
 		args = append(args, "%"+f.agent+"%")
-		idx++
 	}
 
 	return "WHERE " + strings.Join(clauses, " AND "), args
@@ -172,7 +168,7 @@ func buildWhereClause(f filterParams, startParam int) (string, []interface{}) {
 // Timeline: hits over time
 func (s *Server) handleTimeline(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 
 	// Determine granularity based on time range
 	duration := f.to.Sub(f.from)
@@ -214,7 +210,7 @@ func (s *Server) handleTimeline(w http.ResponseWriter, r *http.Request) {
 // Countries: pie chart data
 func (s *Server) handleCountries(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 	limit := intParam(r, "limit", 20)
 
 	query := fmt.Sprintf(`SELECT country, count() AS hits FROM hits %s GROUP BY country ORDER BY hits DESC LIMIT %d`, where, limit)
@@ -244,7 +240,7 @@ func (s *Server) handleCountries(w http.ResponseWriter, r *http.Request) {
 // Methods: pie chart data
 func (s *Server) handleMethods(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 
 	query := fmt.Sprintf(`SELECT method, count() AS hits FROM hits %s GROUP BY method ORDER BY hits DESC`, where)
 	rows, err := s.conn.Query(r.Context(), query, args...)
@@ -273,7 +269,7 @@ func (s *Server) handleMethods(w http.ResponseWriter, r *http.Request) {
 // Top endpoints
 func (s *Server) handleEndpoints(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 	limit := intParam(r, "limit", 20)
 
 	query := fmt.Sprintf(`SELECT path, count() AS hits FROM hits %s GROUP BY path ORDER BY hits DESC LIMIT %d`, where, limit)
@@ -303,7 +299,7 @@ func (s *Server) handleEndpoints(w http.ResponseWriter, r *http.Request) {
 // Top user agents
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 	limit := intParam(r, "limit", 20)
 
 	query := fmt.Sprintf(`SELECT user_agent, count() AS hits FROM hits %s GROUP BY user_agent ORDER BY hits DESC LIMIT %d`, where, limit)
@@ -333,7 +329,7 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 // Overview stats
 func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 
 	type overview struct {
 		TotalHits       uint64 `json:"total_hits"`
@@ -363,7 +359,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 // CSV export
 func (s *Server) handleCSVExport(w http.ResponseWriter, r *http.Request) {
 	f := parseFilters(r)
-	where, args := buildWhereClause(f, 0)
+	where, args := buildWhereClause(f)
 
 	query := fmt.Sprintf(`SELECT timestamp, method, path, user_agent, country, city,
 	          content_type, body_size FROM hits %s ORDER BY timestamp DESC LIMIT 100000`, where)

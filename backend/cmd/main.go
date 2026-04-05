@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/rs/cors"
 	"github.com/samwang8891/whats-the-bot-doing/internal/api"
@@ -26,10 +27,18 @@ func main() {
 	defer geo.Close()
 	log.Println("GeoIP database loaded")
 
-	// Initialize ClickHouse
-	chClient, err := ch.New(cfg.ClickHouseAddr, cfg.ClickHouseDB, cfg.BatchSize, cfg.FlushInterval)
-	if err != nil {
-		log.Fatalf("Failed to connect to ClickHouse: %v", err)
+	// Initialize ClickHouse (retry up to 30 times)
+	var chClient *ch.Client
+	for i := 1; i <= 30; i++ {
+		chClient, err = ch.New(cfg.ClickHouseAddr, cfg.ClickHouseDB, cfg.BatchSize, cfg.FlushInterval)
+		if err == nil {
+			break
+		}
+		log.Printf("ClickHouse not ready (attempt %d/30): %v", i, err)
+		time.Sleep(2 * time.Second)
+	}
+	if chClient == nil {
+		log.Fatalf("Failed to connect to ClickHouse after 30 attempts: %v", err)
 	}
 	defer chClient.Close()
 	log.Println("ClickHouse connected")
