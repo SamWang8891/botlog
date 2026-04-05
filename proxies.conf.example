@@ -2,10 +2,9 @@
 # The backend will use X-Forwarded-For / X-Real-IP from these sources
 # to determine the real client IP.
 #
-# Examples:
-#   192.168.1.100
-#   10.0.0.0/8
-#   172.16.0.0/12
+# Private/Docker network ranges (10.x, 172.16-31.x, 192.168.x) are
+# trusted automatically — no need to add them here.
 #
-# If you use Nginx Proxy Manager, add its IP here:
-# 192.168.1.100
+# Only add PUBLIC proxy IPs if you have an external (non-Docker) reverse proxy:
+#   203.0.113.50
+#   198.51.100.0/24

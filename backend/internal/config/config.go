@@ -35,15 +35,35 @@ func Load() *Config {
 	return cfg
 }
 
+// privateRanges are always trusted — they cover Docker internal networks
+// and any local reverse proxy (Nginx Proxy Manager, Caddy, etc.).
+var privateRanges = []string{
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"127.0.0.0/8",
+	"::1/128",
+	"fc00::/7",
+}
+
 func loadProxies(path string) []*net.IPNet {
+	var nets []*net.IPNet
+
+	// Always trust private/loopback ranges (Docker, local proxies)
+	for _, cidr := range privateRanges {
+		_, n, _ := net.ParseCIDR(cidr)
+		nets = append(nets, n)
+	}
+
+	// Load additional user-defined proxies from file
 	f, err := os.Open(path)
 	if err != nil {
-		log.Printf("No proxy config at %s (using RemoteAddr only): %v", path, err)
-		return nil
+		log.Printf("No proxy config at %s (using private ranges only): %v", path, err)
+		return nets
 	}
 	defer f.Close()
 
-	var nets []*net.IPNet
+	extra := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -64,9 +84,10 @@ func loadProxies(path string) []*net.IPNet {
 			continue
 		}
 		nets = append(nets, cidr)
+		extra++
 	}
-	if len(nets) > 0 {
-		log.Printf("Loaded %d trusted proxy entries", len(nets))
+	if extra > 0 {
+		log.Printf("Loaded %d extra trusted proxy entries from %s", extra, path)
 	}
 	return nets
 }
