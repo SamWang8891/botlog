@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
@@ -116,7 +117,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 		rows, err := s.conn.Query(r.Context(), `SELECT timestamp, method, path, user_agent, country, city,
 			content_type, body_preview, body_size
-			FROM hits WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 50`, cursor)
+			FROM hits WHERE timestamp > @cursor ORDER BY timestamp ASC LIMIT 50`,
+			clickhouse.DateNamed("cursor", cursor, 3))
 		if err != nil {
 			log.Printf("SSE poll error: %v", err)
 			continue
