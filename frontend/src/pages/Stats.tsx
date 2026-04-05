@@ -8,7 +8,7 @@ import { useStats, useFilterOptions, downloadCSV, type Filters, type NameValue }
 
 const COLORS = ['#00ff88', '#00d4ff', '#b44dff', '#ff3366', '#ffdd00', '#ff8844', '#44ffcc', '#ff44aa', '#88ff44', '#4488ff'];
 
-type ChartType = 'bar' | 'line' | 'area' | 'pie';
+type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'ranking';
 
 function ChartTypeSelector({ value, onChange }: { value: ChartType; onChange: (t: ChartType) => void }) {
   const types: { key: ChartType; label: string }[] = [
@@ -16,6 +16,7 @@ function ChartTypeSelector({ value, onChange }: { value: ChartType; onChange: (t
     { key: 'line', label: 'LINE' },
     { key: 'area', label: 'AREA' },
     { key: 'pie', label: 'PIE' },
+    { key: 'ranking', label: 'RANK' },
   ];
   return (
     <div className="flex gap-1">
@@ -50,11 +51,27 @@ function TimelineChart({ data, chartType }: { data: { time: string; hits: number
     label: new Date(d.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
   }));
 
+  if (chartType === 'ranking') {
+    const ranked = [...formatted].sort((a, b) => b.hits - a.hits);
+    return <RankingTable data={ranked.map(d => ({ name: d.label, value: d.hits }))} />;
+  }
+
   if (chartType === 'pie') {
     return (
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
-          <Pie data={formatted.slice(-20)} dataKey="hits" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
+          <Pie
+            data={formatted.slice(-20)}
+            dataKey="hits"
+            nameKey="label"
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={100}
+            paddingAngle={2}
+            label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+            labelLine={false}
+          >
             {formatted.slice(-20).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
           </Pie>
           <Tooltip contentStyle={customTooltipStyle} />
@@ -80,20 +97,78 @@ function TimelineChart({ data, chartType }: { data: { time: string; hits: number
   );
 }
 
+function RankingTable({ data }: { data: NameValue[] }) {
+  const max = data[0]?.value ?? 1;
+  return (
+    <div className="h-[300px] overflow-y-auto custom-scrollbar">
+      <table className="w-full">
+        <tbody>
+          {data.map((d, i) => (
+            <tr key={d.name} className="border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
+              <td className="py-1.5 px-2 w-8 text-right">
+                <span className={`text-xs font-bold ${i < 3 ? 'text-neon-yellow' : 'text-dark-500'}`}>
+                  {i + 1}
+                </span>
+              </td>
+              <td className="py-1.5 px-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-300 truncate" title={d.name}>{d.name}</div>
+                    <div className="mt-1 h-1 rounded-full bg-dark-700 overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(d.value / max) * 100}%`,
+                          backgroundColor: COLORS[i % COLORS.length],
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono text-neon-green whitespace-nowrap">{d.value.toLocaleString()}</span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DistributionChart({ data, chartType }: { data: NameValue[]; chartType: ChartType }) {
   if (!data || data.length === 0) {
     return <div className="h-[250px] flex items-center justify-center text-dark-500 text-sm">No data</div>;
   }
 
+  if (chartType === 'ranking') {
+    return <RankingTable data={data} />;
+  }
+
   if (chartType === 'pie' || chartType === 'area') {
     return (
-      <ResponsiveContainer width="100%" height={250}>
+      <ResponsiveContainer width="100%" height={300}>
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="45%"
+            innerRadius={45}
+            outerRadius={80}
+            paddingAngle={2}
+            label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+            labelLine={false}
+          >
             {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
           </Pie>
           <Tooltip contentStyle={customTooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: '11px' }} />
+          <Legend
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+          />
         </PieChart>
       </ResponsiveContainer>
     );
