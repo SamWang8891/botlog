@@ -26,7 +26,7 @@ function ChartTypeSelector({ value, onChange }: { value: ChartType; onChange: (t
           className={`px-3 py-1 text-xs font-mono rounded border transition-all ${
             value === t.key
               ? 'bg-neon-blue/20 text-neon-blue border-neon-blue/50'
-              : 'bg-dark-800 text-gray-500 border-dark-600 hover:text-gray-300'
+              : 'bg-dark-800 text-gray-400 border-dark-600 hover:text-gray-300'
           }`}
         >
           {t.label}
@@ -69,8 +69,8 @@ function TimelineChart({ data, chartType }: { data: { time: string; hits: number
     <ResponsiveContainer width="100%" height={300}>
       <ChartComponent data={formatted}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1c2840" />
-        <XAxis dataKey="label" tick={{ fill: '#4a5568', fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
-        <YAxis tick={{ fill: '#4a5568', fontSize: 11 }} />
+        <XAxis dataKey="label" tick={{ fill: '#8896aa', fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
+        <YAxis tick={{ fill: '#8896aa', fontSize: 11 }} />
         <Tooltip contentStyle={customTooltipStyle} />
         {chartType === 'bar' && <Bar dataKey="hits" fill="#00d4ff" radius={[2, 2, 0, 0]} />}
         {chartType === 'line' && <Line type="monotone" dataKey="hits" stroke="#00ff88" strokeWidth={2} dot={false} />}
@@ -103,8 +103,8 @@ function DistributionChart({ data, chartType }: { data: NameValue[]; chartType: 
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={data} layout="vertical">
         <CartesianGrid strokeDasharray="3 3" stroke="#1c2840" />
-        <XAxis type="number" tick={{ fill: '#4a5568', fontSize: 11 }} />
-        <YAxis dataKey="name" type="category" width={120} tick={{ fill: '#4a5568', fontSize: 10 }} />
+        <XAxis type="number" tick={{ fill: '#8896aa', fontSize: 11 }} />
+        <YAxis dataKey="name" type="category" width={120} tick={{ fill: '#8896aa', fontSize: 10 }} />
         <Tooltip contentStyle={customTooltipStyle} />
         <Bar dataKey="value" fill="#00d4ff" radius={[0, 2, 2, 0]} />
       </BarChart>

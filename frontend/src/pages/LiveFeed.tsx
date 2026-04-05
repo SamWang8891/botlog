@@ -34,7 +34,7 @@ function HitRow({ hit }: { hit: DisplayHit }) {
         <span className="text-dark-500 mx-1">/</span>
         <span>{hit.country}</span>
       </td>
-      <td className="hidden md:table-cell px-3 py-2 text-xs text-gray-500 truncate max-w-[300px]" title={hit.user_agent}>
+      <td className="hidden md:table-cell px-3 py-2 text-xs text-gray-300 truncate max-w-[300px]" title={hit.user_agent}>
         {truncateUA(hit.user_agent)}
       </td>
       <td className="hidden lg:table-cell px-3 py-2 text-xs">
@@ -60,7 +60,7 @@ export default function LiveFeed() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${connected ? 'bg-neon-green animate-pulse-glow' : 'bg-neon-red'}`} />
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-300">
             {connected ? 'LIVE — streaming bot traffic' : 'RECONNECTING...'}
           </span>
         </div>

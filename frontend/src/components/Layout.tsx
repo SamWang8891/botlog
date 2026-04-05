@@ -8,7 +8,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
         `px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${
           isActive
             ? 'text-neon-blue border-neon-blue glow-blue'
-            : 'text-gray-400 border-transparent hover:text-neon-green hover:border-neon-green/50'
+            : 'text-gray-300 border-transparent hover:text-neon-green hover:border-neon-green/50'
         }`
       }
     >
