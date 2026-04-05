@@ -11,31 +11,42 @@ A standalone honeypot that logs and visualizes bot/scanner traffic in real-time.
 
 ## Quick Start
 
-### 1. Get GeoLite2 Database
-
-Register at [MaxMind](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) and download `GeoLite2-City.mmdb`.
-
 ```bash
-mkdir -p data
-# Place GeoLite2-City.mmdb in ./data/
+git clone https://github.com/SamWang8891/whats-the-bot-doing.git
+cd whats-the-bot-doing
+./setup.sh
 ```
 
-### 2. Deploy with Docker Compose
+That's it. The setup script will:
+1. Verify Docker and Docker Compose are installed and running
+2. Download the latest GeoLite2-City.mmdb automatically
+3. Build and deploy all services
+4. Health-check and print the ports when ready
 
-```bash
-docker compose up -d
-```
+### Ports
 
-This starts:
-- **ClickHouse** on ports 8123 (HTTP) / 9000 (native)
-- **Backend** trap on port 8080 (point your DNS/firewall here)
-- **Frontend** dashboard on port 3000
+| Service | Port | Description |
+|---------|------|-------------|
+| Dashboard | `3000` | Web UI — open in your browser |
+| Trap | `8080` | Honeypot — point your DNS/firewall here |
+| API | `8081` | Backend REST API + SSE stream |
+| ClickHouse | `8123` | ClickHouse HTTP interface |
 
-### 3. Access Dashboard
+### Dashboard Pages
 
-Open `http://your-server:3000` to see:
-- **LIVE** — real-time scrolling feed of bot hits
+- **LIVE** — real-time scrolling feed of bot hits via SSE
 - **STATS** — filterable charts (bar/line/area/pie) + CSV export
+
+## Updating
+
+```bash
+./update.sh
+```
+
+This will:
+1. Pull the latest code (`git pull --ff-only`)
+2. Re-download the latest GeoLite2-City.mmdb
+3. Rebuild and restart all services with zero data loss
 
 ## Configuration
 
