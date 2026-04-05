@@ -88,17 +88,11 @@ done
 info "Waiting for services to start..."
 sleep 5
 
-BACKEND_OK=false
-FRONTEND_OK=false
+SERVICE_OK=false
 
 for i in $(seq 1 15); do
-    if ! $BACKEND_OK && curl -sf http://localhost:8081/api/filters &>/dev/null; then
-        BACKEND_OK=true
-    fi
-    if ! $FRONTEND_OK && curl -sf http://localhost:3000 &>/dev/null; then
-        FRONTEND_OK=true
-    fi
-    if $BACKEND_OK && $FRONTEND_OK; then
+    if curl -sf http://localhost &>/dev/null; then
+        SERVICE_OK=true
         break
     fi
     sleep 2
@@ -108,23 +102,21 @@ echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-if $FRONTEND_OK; then
-    ok "Dashboard is live"
+if $SERVICE_OK; then
+    ok "BOTLOG is live"
 else
-    warn "Dashboard may still be starting up"
-fi
-
-if $BACKEND_OK; then
-    ok "Backend API is live"
-else
-    warn "Backend may still be starting up"
+    warn "Services may still be starting up"
 fi
 
 echo ""
-echo -e "  ${CYAN}Dashboard:${NC}   http://localhost:${YELLOW}3000${NC}"
-echo -e "  ${CYAN}Trap port:${NC}   http://localhost:${YELLOW}8080${NC}  (point your DNS here)"
-echo -e "  ${CYAN}API port:${NC}    http://localhost:${YELLOW}8081${NC}"
-echo -e "  ${CYAN}ClickHouse:${NC}  http://localhost:${YELLOW}8123${NC}"
+echo -e "  ${CYAN}All traffic on port ${YELLOW}80${NC}"
+echo ""
+echo -e "  ${CYAN}/       ${NC}  Dashboard (live feed)"
+echo -e "  ${CYAN}/stats  ${NC}  Statistics & CSV export"
+echo -e "  ${CYAN}/*      ${NC}  Everything else is a bot trap"
+echo ""
+echo -e "  Point your domain's DNS A record to this server."
+echo -e "  Any bot hitting any path will be logged."
 echo ""
 echo -e "  To view logs:    ${YELLOW}$COMPOSE logs -f${NC}"
 echo -e "  To stop:         ${YELLOW}$COMPOSE down${NC}"

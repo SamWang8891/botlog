@@ -28,14 +28,22 @@ else
     fail "Docker Compose not found."
 fi
 
-# ── 1. Git pull ──────────────────────────────────────────────���───
+# ── 1. Git pull ─────────────────────────────────────────────────
+SELF_HASH=$(md5sum "$0" 2>/dev/null || md5 -q "$0" 2>/dev/null)
+
 info "Pulling latest code..."
 if ! git pull --ff-only; then
     fail "git pull failed. Resolve conflicts manually and re-run."
 fi
 ok "Code updated"
 
-# ── 2. Update GeoLite2-City.mmdb ──────────────���─────────────────
+NEW_HASH=$(md5sum "$0" 2>/dev/null || md5 -q "$0" 2>/dev/null)
+if [ "$SELF_HASH" != "$NEW_HASH" ]; then
+    warn "update.sh itself was updated. Please re-run: ./update.sh"
+    exit 0
+fi
+
+# ── 2. Update GeoLite2-City.mmdb ───────────────────────────────
 DATA_DIR="$(pwd)/data"
 MMDB_PATH="${DATA_DIR}/GeoLite2-City.mmdb"
 GEOLITE2_URL="https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb"
@@ -68,5 +76,5 @@ $COMPOSE up -d --build 2>&1 | while IFS= read -r line; do
 done
 
 echo ""
-ok "Update complete. Dashboard: http://localhost:${YELLOW}3000${NC}"
+ok "Update complete. Dashboard: http://localhost"
 echo -e "  To view logs: ${YELLOW}$COMPOSE logs -f${NC}"

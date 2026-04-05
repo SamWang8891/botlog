@@ -4,7 +4,7 @@ A standalone honeypot that logs and visualizes bot/scanner traffic in real-time.
 
 ## Architecture
 
-- **Go backend** — dual HTTP server (trap on `:8080`, API on `:8081`)
+- **Go backend** — trap + API server behind nginx
 - **ClickHouse** — columnar analytics DB for billions of rows
 - **React + TypeScript** — responsive dashboard with dark/tech theme
 - **MaxMind GeoLite2** — IP to city/country resolution
@@ -21,21 +21,18 @@ That's it. The setup script will:
 1. Verify Docker and Docker Compose are installed and running
 2. Download the latest GeoLite2-City.mmdb automatically
 3. Build and deploy all services
-4. Health-check and print the ports when ready
+4. Health-check and print status when ready
 
-### Ports
+Everything runs on a **single port (80)**. Point your domain here.
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Dashboard | `3000` | Web UI — open in your browser |
-| Trap | `8080` | Honeypot — point your DNS/firewall here |
-| API | `8081` | Backend REST API + SSE stream |
-| ClickHouse | `8123` | ClickHouse HTTP interface |
+### Routes
 
-### Dashboard Pages
-
-- **LIVE** — real-time scrolling feed of bot hits via SSE
-- **STATS** — filterable charts (bar/line/area/pie) + CSV export
+| Path | What it does |
+|------|-------------|
+| `/` | Dashboard — live feed of bot hits |
+| `/stats` | Statistics — filterable charts + CSV export |
+| `/api/*` | REST API + SSE stream (used by the dashboard) |
+| `/*` (anything else) | Bot trap — logs the hit and returns a fake page |
 
 ## Updating
 
