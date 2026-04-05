@@ -1,0 +1,11 @@
+.idea/
+node_modules/
+frontend/dist/
+frontend/node_modules/
+backend/main
+data/*.mmdb
+*.exe
+*.dll
+*.so
+*.dylib
+.env

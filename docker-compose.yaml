@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: botlog-clickhouse
+    ports:
+      - "8123:8123"   # HTTP
+      - "9000:9000"   # Native
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: botlog-backend
+    ports:
+      - "8080:8080"   # Trap (public-facing)
+      - "8081:8081"   # API (dashboard)
+    environment:
+      - TRAP_PORT=8080
+      - API_PORT=8081
+      - CLICKHOUSE_ADDR=clickhouse:9000
+      - CLICKHOUSE_DB=botlog
+      - GEOIP_PATH=/data/GeoLite2-City.mmdb
+    volumes:
+      - ./data:/data
+    depends_on:
+      - clickhouse
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: botlog-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  clickhouse_data:
