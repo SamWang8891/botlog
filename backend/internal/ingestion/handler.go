@@ -83,11 +83,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HIT %s %s from %s (%s, %s) UA=%s",
 		r.Method, r.URL.Path, ip, loc.City, loc.Country, truncate(r.UserAgent(), 60))
 
-	// Return a realistic-looking response to keep bots engaged
+	// Return realistic responses to keep bots engaged
 	w.Header().Set("Server", "nginx/1.24.0")
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`<!DOCTYPE html><html><head><title>Welcome</title></head><body><h1>Welcome</h1></body></html>`))
+	switch r.URL.Path {
+	case "/robots.txt":
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(robotsTxt))
+	case "/sitemap.xml":
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(sitemapXML))
+	case "/.well-known/security.txt":
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(securityTxt))
+	default:
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(trapHTML))
+	}
 }
 
 func (h *Handler) extractIP(r *http.Request) string {
@@ -145,3 +156,82 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "..."
 }
+
+// robots.txt — "disallowed" paths are magnets for malicious bots
+const robotsTxt = `User-agent: *
+Disallow: /admin/
+Disallow: /wp-admin/
+Disallow: /wp-login.php
+Disallow: /administrator/
+Disallow: /backup/
+Disallow: /config/
+Disallow: /database/
+Disallow: /api/v1/users
+Disallow: /api/v1/keys
+Disallow: /.env
+Disallow: /.git/
+Disallow: /debug/
+Disallow: /server-status
+Disallow: /phpmyadmin/
+Disallow: /cpanel/
+Disallow: /user/login
+Disallow: /xmlrpc.php
+
+Sitemap: /sitemap.xml
+`
+
+const sitemapXML = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>/</loc><priority>1.0</priority></url>
+  <url><loc>/about</loc><priority>0.8</priority></url>
+  <url><loc>/contact</loc><priority>0.8</priority></url>
+  <url><loc>/blog</loc><priority>0.7</priority></url>
+  <url><loc>/products</loc><priority>0.7</priority></url>
+  <url><loc>/login</loc><priority>0.6</priority></url>
+  <url><loc>/register</loc><priority>0.6</priority></url>
+  <url><loc>/api/docs</loc><priority>0.5</priority></url>
+  <url><loc>/user/profile</loc><priority>0.5</priority></url>
+  <url><loc>/search</loc><priority>0.5</priority></url>
+</urlset>`
+
+const securityTxt = `Contact: mailto:admin@example.com
+Preferred-Languages: en
+`
+
+const trapHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome — My Website</title>
+  <meta name="description" content="Official company website with products, blog, and customer portal.">
+  <meta name="keywords" content="products, services, login, account, dashboard, api">
+</head>
+<body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/products">Products</a>
+    <a href="/contact">Contact</a>
+    <a href="/login">Login</a>
+    <a href="/register">Register</a>
+  </nav>
+  <h1>Welcome to Our Website</h1>
+  <p>We offer a wide range of products and services. Please log in to access your account.</p>
+  <h2>Quick Links</h2>
+  <ul>
+    <li><a href="/user/profile">My Account</a></li>
+    <li><a href="/api/docs">API Documentation</a></li>
+    <li><a href="/search?q=">Search</a></li>
+    <li><a href="/blog/2024/getting-started">Getting Started Guide</a></li>
+  </ul>
+  <!-- TODO: remove before production -->
+  <!-- <a href="/admin/">Admin Panel</a> -->
+  <!-- <a href="/debug/">Debug Console</a> -->
+  <!-- staging: /api/v1/internal -->
+  <footer>
+    <a href="/terms">Terms</a> | <a href="/privacy">Privacy</a> | <a href="/sitemap.xml">Sitemap</a>
+  </footer>
+</body>
+</html>`
